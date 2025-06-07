@@ -1,5 +1,13 @@
 import streamlit as st
 import time 
+import os
+import google.generativeai as genai
+from PyPDF2 import PdfReader
+import numpy as np
+import faiss
+from sklearn.metrics.pairwise import cosine_similarity
+
+
 
 if "file_uploaded" not in st.session_state:
     st.session_state.file_uploaded = False
