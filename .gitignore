@@ -1,4 +1,7 @@
-/.venv/
+# Python project .gitignore file
 *.env
 __pycache__/
 *.pyc
+.config/
+.venv/
+faiss_index/
