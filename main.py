@@ -103,7 +103,7 @@ if not st.session_state.file_uploaded:
 
 
 
-if st.session_state.file_uploaded:
+if st.session_state.file_uploaded and st.session_state.vector_store is not None:
     st.success("File uploaded successfully! Now you can interact with the PDF.")
     # Here you can add the code to process the uploaded PDF and create a chatbot interface
     # For example, you could use PyPDF2 or pdfminer to extract text from the PDF and then use OpenAI's API to create a chatbot.
