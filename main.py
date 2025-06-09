@@ -32,7 +32,10 @@ def remove_readonly(func, path, excinfo):
 
 if "file_uploaded" not in st.session_state:
     st.session_state.file_uploaded = False
-    shutil.rmtree("faiss_index", onerror=remove_readonly)
+    path = "faiss_index"
+    if os.path.exists(path):
+        # If the directory exists, remove it
+        shutil.rmtree("faiss_index", onerror=remove_readonly)
 
 
 def extract_text_from_pdf(file):
@@ -52,11 +55,11 @@ def split_text_chunks(text):
   
 
 def create_vector_store(text_chunks):
-    """"Creates a vector store from the text chunks using Google Generative AI embeddings."""
-   embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api)
-   vector_store = FAISS.from_texts( text_chunks, embedding = embeddings)
-   vector_store.save_local("faiss_index")
-   return vector_store
+    """Creates a vector store from the text chunks using Google Generative AI embeddings."""
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api)
+    vector_store = FAISS.from_texts( text_chunks, embedding = embeddings)
+    vector_store.save_local("faiss_index")
+    return vector_store
 
 def get_conversation_chain():
     """Creates a conversation chain for question answering using Google Generative AI."""
