@@ -1,5 +1,7 @@
 import streamlit as st
 import time 
+import shutil
+import stat
 import os
 from dotenv import load_dotenv 
 import google.generativeai as genai
@@ -12,16 +14,25 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 
 
+
 load_dotenv()
 api=os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=api)
 
+
+def remove_readonly(func, path, excinfo):
+    """
+    Remove read-only attribute from a file or directory.
+    """
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
 
 
 
 
 if "file_uploaded" not in st.session_state:
     st.session_state.file_uploaded = False
+    shutil.rmtree("faiss_index", onerror=remove_readonly)
 
 
 def extract_text_from_pdf(file):
