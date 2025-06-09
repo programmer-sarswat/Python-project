@@ -66,7 +66,7 @@ def get_conversation_chain():
     # Initialize the LLM with the desired model
     llm = ChatGoogleGenerativeAI(model="models/gemini-2.0-flash")
     prompt = PromptTemplate(
-        template="You are a helpful assistant. Answer the question based on the context provided.\n\nContext: {context}\n\nQuestion: {question}",
+        template="You are a helpful PDF assistant. Answer the user's question using only the content provided from the PDF below. If the answer exists in the context, provide it clearly and also mention the page number(s) it appears on.If the answer is not in the provided context, respond with: I’m sorry, I couldn’t find relevant information in the PDF. Do not make up information. Do not use outside knowledge.\n\nContext: {context}\n\nQuestion: {question}",
         input_variables=["context", "question"]
     )
     chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
@@ -87,7 +87,7 @@ def user_query(query):
     response = chain.run(input_documents=docs, question=query)
     
     print("Response:", response)
-    st.write("Response:", response)
+    return response
 
 st.title("PDF Chatbot")
 
@@ -99,9 +99,8 @@ if not st.session_state.file_uploaded:
     upload_clicked = st.button("Upload File")
 
     if file and upload_clicked:
-        st.success(f"You have uploaded file `{file.name}` successfully.")
         st.session_state.file_uploaded = True
-        with st.spinner("Redirecting please wait..."):
+        with st.spinner("File is uploading, please wait..."):
             full_text = extract_text_from_pdf(file)
             chunks = split_text_chunks(full_text)
             vector_store= create_vector_store(chunks)
@@ -121,13 +120,34 @@ if st.session_state.file_uploaded :
     # For example, you could use PyPDF2 or pdfminer to extract text from the PDF and then use OpenAI's API to create a chatbot.
     
     # Example placeholder for chatbot interaction
-    user_input = st.chat_input("Ask a question about the PDF:")
-    if user_input:
-        with st.spinner("Processing your query..."):
-            user_query(user_input)
-            time.sleep(2)
-    
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        user_input = st.chat_input("Ask a question about the PDF:")
+    with col2:
+        if st.button("🔃"):
+            st.session_state.clear()
+            st.rerun()
+
+    
+    if user_input:     
+                                                                   
+        with st.spinner("Processing your query..."):
+            response = user_query(user_input)
+            time.sleep(2)
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.markdown(user_input)
+        st.session_state.messages.append({"role": "assistant", "content": response})
+        # Display the response from the chatbot
+        with st.chat_message("assistant"):
+            st.markdown(response)
+       
 
 
 
