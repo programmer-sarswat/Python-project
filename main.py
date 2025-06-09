@@ -36,6 +36,7 @@ if "file_uploaded" not in st.session_state:
 
 
 def extract_text_from_pdf(file):
+    """Extracts text from a PDF file."""
     reader = PdfReader(file)
     text = ""
     for page in reader.pages:
@@ -43,18 +44,23 @@ def extract_text_from_pdf(file):
     return text
 
 def split_text_chunks(text):
+    """Splits the text into manageable chunks for processing.
+    """
     text_splitter = RecursiveCharacterTextSplitter( chunk_size=10000, chunk_overlap=100)
     chunks = text_splitter.split_text(text)
     return chunks
   
 
 def create_vector_store(text_chunks):
+    """"Creates a vector store from the text chunks using Google Generative AI embeddings."""
    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api)
    vector_store = FAISS.from_texts( text_chunks, embedding = embeddings)
    vector_store.save_local("faiss_index")
    return vector_store
 
 def get_conversation_chain():
+    """Creates a conversation chain for question answering using Google Generative AI."""
+    # Initialize the LLM with the desired model
     llm = ChatGoogleGenerativeAI(model="models/gemini-2.0-flash")
     prompt = PromptTemplate(
         template="You are a helpful assistant. Answer the question based on the context provided.\n\nContext: {context}\n\nQuestion: {question}",
@@ -64,6 +70,7 @@ def get_conversation_chain():
     return chain
 
 def user_query(query):
+    """Handles user queries by searching the vector store and generating a response."""
     if not query:
         return "Please ask a question."
     vector_stored = FAISS.load_local("faiss_index", GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api), allow_dangerous_deserialization=True)
