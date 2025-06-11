@@ -1,26 +1,39 @@
 import streamlit as st
-import time 
-import shutil
 import stat
 import os
 import hashlib
+import numpy as np
 from dotenv import load_dotenv 
 import google.generativeai as genai
 from PyPDF2 import PdfReader
-from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
+from pinecone import Pinecone
+from langchain.schema import Document
+
 
 load_dotenv()
 # Configure Google Generative AI API key
 api=os.getenv("GOOGLE_API_KEY")
-if not api:
-    st.error("Google API key missing ....")
+pine_api = os.getenv("PINECONE_API_KEY")
+
+if not api and not pine_api:
+    print(" API key missing ....")
+    st.error("Something went wrong, please try again later.")
     st.stop()
 genai.configure(api_key=api)
+pc = Pinecone(api_key=pine_api)
+# Initialize Pinecone index
+index_name = "pdf-chatbot-index"
+
+if index_name in pc.list_indexes():
+    print(f"Index '{index_name}' already exists.")
+    index = pc.Index(index_name)
+
+index = pc.Index(index_name)
 
 #Helper Methods
 def remove_readonly(func, path, excinfo):
@@ -32,22 +45,14 @@ def remove_readonly(func, path, excinfo):
 
 def clear_previous_index():
     """Clears the previous FAISS index if it exists."""
-    path = "faiss_index"
-    if os.path.exists(path):
-        # If the directory exists, remove it
-        shutil.rmtree(path, onerror=remove_readonly)
+    index.delete(delete_all=True)
 
 def extract_text_from_pdf(file):
     """Extracts text from a PDF file."""
     reader = PdfReader(file)
     return "".join(page.extract_text() or "" for page in reader.pages)
 
-def hash_file(file):
-    """Generates a hash for the uploaded file to ensure uniqueness."""
-    file.seek(0)  # Reset file pointer to the beginning
-    file_hash = hashlib.md5(file.read()).hexdigest()
-    file.seek(0)
-    return file_hash
+
 
 def split_text_chunks(text):
     """Splits the text into manageable chunks for processing.
@@ -55,12 +60,40 @@ def split_text_chunks(text):
     chunks = RecursiveCharacterTextSplitter( chunk_size=15000, chunk_overlap=500)
     return chunks.split_text(text)
   
-def create_vector_store(text_chunks):
-    """Creates a vector store from the text chunks using Google Generative AI embeddings."""
+    
+def load_vector_data(vector_data, file_name):
+    """Loads vector data into Pinecone."""
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", api_key=api)
-    vector_store = FAISS.from_texts( text_chunks, embedding = embeddings)
-    #vector_store.save_local(save_path)
-    return vector_store
+    file_name_hash = hashlib.sha256(file_name.encode()).hexdigest()
+    
+    progress = st.progress(0, "Processing the file, please wait...")
+    total_chunks = len(vector_data)
+    embedded_vector = []
+    vector_store = []
+    for i, chunk in enumerate(vector_data): 
+        embedding = embeddings.embed_query(chunk)
+        embedded_vector.append(embedding)
+        
+        vector_store = [
+            {
+                "id": f"{file_name_hash}_{i}",
+                "values": embedded_vector[i],
+                "metadata": {
+                    "file_name": file_name,
+                    "page_content": vector_data[i],
+                    "page_number": i + 1
+                }
+            } 
+      
+        ]
+        progress.progress(int(((i + 1) / total_chunks)*90), f"Processing chunk {i + 1} of {total_chunks}...")
+    #print( len(embedding))
+    index.upsert(
+        vectors=vector_store,
+        namespace=file_name_hash,
+    )
+    progress.progress(100, "File processed successfully!")
+    return {"namespace": file_name_hash, "texts": vector_data, "embeddings": embedded_vector}
 
 def get_conversation_chain():
     """Creates a conversation chain for question answering using Google Generative AI."""
@@ -71,6 +104,14 @@ def get_conversation_chain():
         input_variables=["context", "question"]
     )
     return load_qa_chain(llm, chain_type="stuff", prompt=prompt)
+
+def cosine_similarity(a, b):
+    """Calculates the cosine similarity between two vectors."""
+    a = np.array(a)
+    b = np.array(b)
+    if np.linalg.norm(a) == 0 or np.linalg.norm(b) == 0:
+        return 0.0
+    return np.clip(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)), -1.0, 1.0)
     
 
 def user_query(query):
@@ -78,12 +119,20 @@ def user_query(query):
     if not query:
         return "Please ask a question."
     vector_stored = st.session_state.vector_store
-    docs = vector_stored.similarity_search(query)
-    context = "\n".join([doc.page_content for doc in docs])
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", api_key=api)
+    query_embedding = embeddings.embed_query(query)
+
+    similarity = [
+        (cosine_similarity(query_embedding, vec), text)
+        for vec , text in zip(vector_stored["embeddings"], vector_stored["texts"])
+    ]
+    similarity.sort(reverse=True)
     
+    context = [text for _,text in similarity[:3]]
     if not context:
         return "No relevant information found in the document."
     
+    docs = [ Document(page_content=chunks) for chunks in context]
     chain = st.session_state.qa_chain
     response = chain.run(input_documents=docs, question=query)
     print("Response:", response)
@@ -94,7 +143,7 @@ st.title("PDF Chatbot")
 
 if "file_uploaded" not in st.session_state:
     st.session_state.file_uploaded = False
-    clear_previous_index()
+    #clear_previous_index()
 
 
 if not st.session_state.file_uploaded:
@@ -103,13 +152,14 @@ if not st.session_state.file_uploaded:
     file = st.file_uploader("", type=["pdf"])
     if st.button("Upload"):
         if file:
-            progress = st.progress(0,"File is uploading, please wait...")
+            #progress = st.progress(0,"File is uploading, please wait...")
             full_text = extract_text_from_pdf(file)
-            progress.progress( 25, "File uploading, please wait...")
+            #progress.progress( 25, "File uploading, please wait...")
             chunks = split_text_chunks(full_text)
-            progress.progress(50, "File uploading, please wait...")
-            vector_store= create_vector_store(chunks)
-            progress.progress(100, "File uploading, please wait...")
+            #progress.progress(50, "File uploading, please wait...")
+            vector_store= load_vector_data(chunks , file.name)
+            #progress.progress(100, "File uploading, please wait...")
+          
             st.session_state.pdf_chunks = chunks
             st.session_state.vector_store = vector_store
             st.session_state.qa_chain = get_conversation_chain()
