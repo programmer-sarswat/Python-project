@@ -10,7 +10,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
-from langchain.prompts import PromptTemplate
+from langchain.prompts import PromptTemplate 
 from pinecone import Pinecone
 from langchain.schema import Document
 
@@ -24,14 +24,16 @@ if not api and not pine_api:
     print(" API key missing ....")
     st.error("Something went wrong, please try again later.")
     st.stop()
-genai.configure(api_key=api)
+genai.configure(api_key=api)  
 pc = Pinecone(api_key=pine_api)
+
 # Initialize Pinecone index
-index_name = "pdf-chatbot-index"
+index_name = "pdf-chatbot-index"  #chatbot ke naam ko set karta hai
+
 
 if index_name in pc.list_indexes():
     print(f"Index '{index_name}' already exists.")
-    index = pc.Index(index_name)
+    index = pc.Index(index_name)# Check if the index already exists, if not create it
 
 index = pc.Index(index_name)
 
@@ -50,7 +52,8 @@ def clear_previous_index():
 def extract_text_from_pdf(file):
     """Extracts text from a PDF file."""
     reader = PdfReader(file)
-    return "".join(page.extract_text() or "" for page in reader.pages)
+    return "".join(page.extract_text() or "" for page in reader.pages) #re pdf ke har page se text ko extract karta hai aur koi page blank hai to none ya empty string return karta hai
+#last me pure text ko  concatenate karta hai.
 
 
 
@@ -58,13 +61,17 @@ def split_text_chunks(text):
     """Splits the text into manageable chunks for processing.
     """
     chunks = RecursiveCharacterTextSplitter( chunk_size=15000, chunk_overlap=500)
+    # ye text smart way me divide karta hai, jisme har chunk ka size 15000 characters hota hai aur overlap 500 characters ka hota hai.
+    #but jo next chunk hai usme 500 characters ka overlap hota hai, jisse ai ko context samajhne me madad milti hai.
     return chunks.split_text(text)
   
-    
+    # embeddings= text ko number me convert karta hai, jisse ai ko samajhne me asani hoti hai.
+    #ex- "Hello world" -> [0.1, 0.2, 0.3, ...]
 def load_vector_data(vector_data, file_name):
     """Loads vector data into Pinecone."""
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", api_key=api)
-    file_name_hash = hashlib.sha256(file_name.encode()).hexdigest()
+    #gemini ka embedding model load karwa rha hai, jo text ko vector me convert karega.
+    file_name_hash = hashlib.sha256(file_name.encode()).hexdigest() #file_name ka hash bana rha hai, jisse har file ka unique identifier ban sake.
     
     progress = st.progress(0, "Processing the file, please wait...")
     total_chunks = len(vector_data)
@@ -88,12 +95,13 @@ def load_vector_data(vector_data, file_name):
         ]
         progress.progress(int(((i + 1) / total_chunks)*90), f"Processing chunk {i + 1} of {total_chunks}...")
     #print( len(embedding))
-    index.upsert(
+    index.upsert( #data ko pinecone me store karta hai.
         vectors=vector_store,
         namespace=file_name_hash,
     )
     progress.progress(100, "File processed successfully!")
     return {"namespace": file_name_hash, "texts": vector_data, "embeddings": embedded_vector}
+
 
 def get_conversation_chain():
     """Creates a conversation chain for question answering using Google Generative AI."""
