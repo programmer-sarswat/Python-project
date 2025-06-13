@@ -4,7 +4,6 @@ import os
 import hashlib
 import numpy as np
 from dotenv import load_dotenv 
-import google.generativeai as genai
 from PyPDF2 import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
