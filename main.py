@@ -4,7 +4,6 @@ import os
 import hashlib
 import numpy as np
 from dotenv import load_dotenv 
-import google.generativeai as genai
 from PyPDF2 import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -24,7 +23,7 @@ if not api and not pine_api:
     print(" API key missing ....")
     st.error("Something went wrong, please try again later.")
     st.stop()
-genai.configure(api_key=api)  
+# genai.configure(api_key=api)  
 pc = Pinecone(api_key=pine_api)
 
 # Initialize Pinecone index
