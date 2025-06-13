@@ -1,4 +1,5 @@
 📄 PDF Chatbot using LangChain, Gemini & Pinecone
+
 This is a Streamlit-based AI-powered chatbot that lets users interact with the content of any PDF. The chatbot reads your uploaded PDF, breaks it into chunks, stores them in a vector database (Pinecone), and allows you to ask context-aware questions using Google's Gemini (via LangChain).
 
 🚀 Features
