@@ -1,103 +1,91 @@
+📄 PDF Chatbot using LangChain, Gemini & Pinecone
 
-# 📘 PDF Chatbot :-
+This is a Streamlit-based AI-powered chatbot that lets users interact with the content of any PDF. The chatbot reads your uploaded PDF, breaks it into chunks, stores them in a vector database (Pinecone), and allows you to ask context-aware questions using Google's Gemini (via LangChain).
 
-A simple and powerful **Streamlit app** that allows users to upload a PDF, extract its content, generate vector embeddings using **Generative AI APIs**, and chat with the document — powered by **FAISS** for vector search.
+🚀 Features
+📥 Upload any PDF file.
 
----
+📄 Extracts text from each page.
 
-## 🚀 Features
+✂️ Splits large texts into manageable chunks with overlap.
 
-- 📤 Upload a PDF file (one at a time)
-- 📄 Extract and split text into chunks
-- 🔎 Create a vector database with AI Embeddings and FAISS
-- 💬 Ask questions based only on the uploaded PDF
-- 🧠 Uses a language model to generate contextual answers
-- 🧹 Auto-cleans previous uploads (removes FAISS DB before new upload)
+🔍 Embeds text chunks using Gemini Embedding API.
 
----
+🧠 Stores vectors in Pinecone for semantic search.
 
-## 📦 Dependencies
+🤖 Uses LangChain + Gemini Chat to answer questions based on PDF content.
 
-Install all required libraries:
+💬 Clean conversational UI using Streamlit chat interface.
 
-```bash
-pip install streamlit google-generativeai faiss-cpu pypdf langchain langchain-google-genai python-dotenv
-```
+🔁 "Clear Chat" and "Refresh" support.
 
----
+🧰 Tech Stack
+Frontend: Streamlit
 
-## 🔑 API Key Setup
+Backend Logic: Python
 
-1. Go to: https://makersuite.google.com/app/apikey  
-2. Copy your API key.
-3. Create a `.env` file in the project root:
+AI Model: Google Gemini (via langchain_google_genai)
 
-```env
-GOOGLE_API_KEY=your_google_api_key_here
-```
+Vector Store: Pinecone
 
----
+PDF Parsing: PyPDF2
 
-## 🧠 How It Works
+Environment Management: python-dotenv
 
-1. **Upload a PDF** using Streamlit UI.
-2. The PDF is read using `PyPDF2`, and the text is split into chunks.
-3. Text chunks are embedded using AI embeddings.
-4. A **FAISS** vector index is built and saved.
-5. On each query, the most relevant chunks are searched.
-6. A QA chain is used to generate the answer based only on PDF content.
+📦 Setup Instructions
+Clone this repo:
 
----
+bash
+Copy
+Edit
+git clone https://github.com/your-repo/pdf-chatbot
+cd pdf-chatbot
+Install dependencies:
 
-## ▶️ How to Run
+bash
+Copy
+Edit
+pip install -r requirements.txt
+Create .env file:
 
-```bash
-streamlit run main.py
-```
+env
+Copy
+Edit
+GOOGLE_API_KEY=your_google_genai_api_key
+PINECONE_API_KEY=your_pinecone_api_key
+Run the app:
 
----
+bash
+Copy
+Edit
+streamlit run app.py
+🔎 How It Works
+Upload a PDF via the UI.
 
-## 🗂 Project Structure
+Extract Text from all PDF pages.
 
-```
-📁 project-folder/
-│
-├── main.py              # Main Streamlit app
-├── .env                 # Contains GOOGLE_API_KEY
-├── faiss_index/         # Auto-generated folder for vector store
-```
+Split Text into chunks with overlap for context.
 
----
+Convert Chunks into embeddings via Gemini API.
 
-## 📌 Notes
+Store Embeddings in Pinecone with unique identifiers.
 
-- Only one PDF is handled at a time. Previous vector DB is cleared on new upload.
-- You can replace FAISS with ChromaDB by modifying the `create_vector_store()` function.
-- All answers are generated based **strictly on the PDF context**, not external data.
+Chat with PDF: Ask questions—AI fetches the most similar chunks and replies using Gemini.
 
----
+🧪 Sample Use Cases
+Reading and querying research papers
 
-## ✨ Example Usage
+Understanding business reports
 
-> Upload: `research-paper.pdf`  
-> Ask: *"What is the main conclusion of this study?"*  
-> ✅ The chatbot returns a focused, context-specific answer.
+Chatting with eBooks, manuals, policies
 
----
+Quick summary and content search
 
-## 🧹 Optional Cleanup Function
+⚠️ Note
+Ensure your API keys for Google GenAI and Pinecone are valid and active.
 
-The app uses:
+Only PDF format is supported.
 
-```python
-shutil.rmtree("faiss_index", onerror=remove_readonly)
-```
+Large PDFs may take a few seconds to process.
 
-...to delete read-only folders on fresh uploads.
 
----
-
-## 🤝 License
-
-Free to use for educational and development purposes.  
-Credit to [LangChain](https://www.langchain.com/) and [Google AI Studio](https://makersuite.google.com/) for powerful APIs.
